@@ -61,3 +61,27 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 
+# Custom
+steam_appid.txt
+
+# ===================================== #
+# Project specific #
+# ===================================== #
+Database.sqlite
+Database/
+Builds/
+
+# Mirror specific ignore rules
+Mirror/Tests/
+Mirror/Examples/
+Mirror/Editor/
+
+# Additionally, ignore unnecessary files in the Mirror folder
+/Mirror/Examples/
+/Mirror/Tests/
+/Mirror/Editor/
+/Mirror/Documentation/
+/Mirror/Presets/
+/Mirror/Notice
+/Mirror/Readme
+/Mirror/Version
