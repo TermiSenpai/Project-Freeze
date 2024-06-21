@@ -361,7 +361,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1524198885}
+      - m_Target: {fileID: 0}
         m_TargetAssemblyTypeName: UIManager, Assembly-CSharp
         m_MethodName: OnJoinRoomButtonPressed
         m_Mode: 1
@@ -1088,9 +1088,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1524198881}
-  - component: {fileID: 1524198885}
   - component: {fileID: 1524198887}
-  - component: {fileID: 1524198888}
   - component: {fileID: 1524198890}
   - component: {fileID: 1524198889}
   - component: {fileID: 1524198891}
@@ -1117,19 +1115,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1524198885
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1524198880}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 06a39eb4ea5702f4b8b3a0b15379d167, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  lobbyManager: {fileID: 1524198888}
 --- !u!114 &1524198887
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1176,20 +1161,6 @@ MonoBehaviour:
   evaluationMethod: 0
   evaluationInterval: 3
   timeInterpolationGui: 0
---- !u!114 &1524198888
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1524198880}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4e6f22e5b0ffa6248b2289db71f2d8c9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  network: {fileID: 1524198887}
-  text: {fileID: 1764218574}
 --- !u!114 &1524198889
 MonoBehaviour:
   m_ObjectHideFlags: 0
