@@ -6,18 +6,21 @@ using TMPro;
 
 public class SteamLobby : MonoBehaviour
 {
-    public GameObject hostButton = null;
+    [Header("UI References")]
+    public GameObject hostButton;
+    public GameObject lobbyUI;
+    public Transform playerListContainer;
+    public GameObject playerListItemPrefab;
+
     private NetworkManager networkManager;
+    private const string HostAddressKey = "HostAddress";
     protected Callback<LobbyCreated_t> lobbyCreated;
     protected Callback<GameLobbyJoinRequested_t> gameLobbyJoinRequested;
     protected Callback<LobbyEnter_t> lobbyEntered;
-    private const string HostAddressKey = "HostAddress";
-    public GameObject lobbyUI = null;
-    public Transform playerListContainer = null;
-    public GameObject playerListItemPrefab = null;
 
     private void Awake()
     {
+        // Find and assign the NetworkManager component in the scene
         networkManager = FindObjectOfType<NetworkManager>();
         if (networkManager == null)
         {
@@ -28,13 +31,20 @@ public class SteamLobby : MonoBehaviour
 
     private void Start()
     {
-        if (!SteamManager.Initialized) { return; }
+        // Check if Steam is initialized
+        if (!SteamManager.Initialized)
+        {
+            Debug.LogError("SteamManager is not initialized.");
+            return;
+        }
 
+        // Initialize Steam callbacks
         InitializeSteamCallbacks();
     }
 
     private void InitializeSteamCallbacks()
     {
+        // Create Steam callbacks for lobby events
         lobbyCreated = Callback<LobbyCreated_t>.Create(OnLobbyCreated);
         gameLobbyJoinRequested = Callback<GameLobbyJoinRequested_t>.Create(OnGameLobbyJoinRequested);
         lobbyEntered = Callback<LobbyEnter_t>.Create(OnLobbyEntered);
@@ -42,53 +52,66 @@ public class SteamLobby : MonoBehaviour
 
     public void HostLobby()
     {
+        // Disable host button and create a Steam lobby
         hostButton.SetActive(false);
         SteamMatchmaking.CreateLobby(ELobbyType.k_ELobbyTypeFriendsOnly, networkManager.maxConnections);
     }
 
     private void OnLobbyCreated(LobbyCreated_t callback)
     {
+        // Check if lobby creation was successful
         if (callback.m_eResult != EResult.k_EResultOK)
         {
-            hostButton.SetActive(true);
+            hostButton.SetActive(true); // Show host button again
             return;
         }
 
+        // Start hosting the game
         networkManager.StartHost();
+
+        // Set host data in Steam lobby
         SetLobbyHostData(callback.m_ulSteamIDLobby);
+
+        // Activate lobby UI
         lobbyUI.SetActive(true);
     }
 
     private void SetLobbyHostData(ulong steamIDLobby)
     {
+        // Set host address data in the Steam lobby
         SteamMatchmaking.SetLobbyData(new CSteamID(steamIDLobby), HostAddressKey, SteamUser.GetSteamID().ToString());
     }
 
     private void OnGameLobbyJoinRequested(GameLobbyJoinRequested_t callback)
     {
+        // Join the game lobby requested by another player
         SteamMatchmaking.JoinLobby(callback.m_steamIDLobby);
     }
 
     private void OnLobbyEntered(LobbyEnter_t callback)
     {
-        // If host
+        // Handle actions when entering a lobby
         if (NetworkServer.active)
         {
+            // Update lobby UI if the current instance is the host
             UpdateLobbyUI(callback.m_ulSteamIDLobby);
         }
-        // If client joining
         else
         {
+            // Connect to the host's lobby if joining as a client
             ConnectToLobbyHost(callback.m_ulSteamIDLobby);
         }
 
-        // Show lobby UI for all clients
+        // Show lobby UI
         lobbyUI.SetActive(true);
+
+        // Hide host button
         hostButton.SetActive(false);
     }
 
     private void ConnectToLobbyHost(ulong steamIDLobby)
     {
+        // Get host address and connect to the lobby
         string hostAddress = SteamMatchmaking.GetLobbyData(new CSteamID(steamIDLobby), HostAddressKey);
         networkManager.networkAddress = hostAddress;
         networkManager.StartClient();
@@ -96,14 +119,22 @@ public class SteamLobby : MonoBehaviour
 
     private void UpdateLobbyUI(ulong steamIDLobby)
     {
-        if (!ValidateUIComponents()) { return; }
+        // Validate UI components before updating
+        if (!ValidateUIComponents())
+        {
+            return;
+        }
 
+        // Clear existing player list
         ClearPlayerList();
+
+        // Populate player list with lobby members
         PopulatePlayerList(steamIDLobby);
     }
 
     private bool ValidateUIComponents()
     {
+        // Check if required UI components are assigned
         if (playerListContainer == null)
         {
             Debug.LogError("playerListContainer is null");
@@ -121,6 +152,7 @@ public class SteamLobby : MonoBehaviour
 
     private void ClearPlayerList()
     {
+        // Clear the player list in the UI
         foreach (Transform child in playerListContainer)
         {
             Destroy(child.gameObject);
@@ -129,57 +161,53 @@ public class SteamLobby : MonoBehaviour
 
     private void PopulatePlayerList(ulong steamIDLobby)
     {
+        // Get lobby ID and the number of members
         CSteamID lobbyID = new CSteamID(steamIDLobby);
         int numMembers = SteamMatchmaking.GetNumLobbyMembers(lobbyID);
 
+        // Populate player list with lobby member information
         for (int i = 0; i < numMembers; i++)
         {
             CSteamID memberSteamID = SteamMatchmaking.GetLobbyMemberByIndex(lobbyID, i);
             string memberName = SteamFriends.GetFriendPersonaName(memberSteamID);
+            Texture2D avatarTexture = GetSteamAvatar(memberSteamID);
 
+            // Instantiate player list item prefab
             GameObject playerListItem = Instantiate(playerListItemPrefab, playerListContainer);
-            SetPlayerListItem(playerListItem, memberSteamID, memberName);
-        }
-    }
 
-    private void SetPlayerListItem(GameObject playerListItem, CSteamID memberSteamID, string memberName)
-    {
-        SetPlayerName(playerListItem, memberName);
-        SetPlayerAvatar(playerListItem, memberSteamID);
-    }
+            // Get PlayerListItemUI component
+            PlayerListItemUI listItemUI = playerListItem.GetComponent<PlayerListItemUI>();
 
-    private void SetPlayerName(GameObject playerListItem, string memberName)
-    {
-        TextMeshProUGUI usernameText = playerListItem.transform.Find("Username").GetComponent<TextMeshProUGUI>();
-        if (usernameText != null)
-        {
-            usernameText.text = memberName;
-        }
-        else
-        {
-            Debug.LogError("username TextMeshProUGUI component not found in playerListItem");
-        }
-    }
-
-    private void SetPlayerAvatar(GameObject playerListItem, CSteamID memberSteamID)
-    {
-        int avatar = SteamFriends.GetLargeFriendAvatar(memberSteamID);
-        if (avatar != -1)
-        {
-            Texture2D avatarTexture = GetSteamImageAsTexture(avatar);
-            if (avatarTexture != null)
+            // Set player information in the UI item
+            if (listItemUI != null)
             {
-                ApplyAvatarTexture(playerListItem, avatarTexture);
+                listItemUI.SetPlayerInfo(memberName, avatarTexture);
+            }
+            else
+            {
+                Debug.LogError("PlayerListItemUI component not found in playerListItem.");
             }
         }
+    }
+
+    private Texture2D GetSteamAvatar(CSteamID steamID)
+    {
+        // Get large avatar image for a Steam user
+        int avatar = SteamFriends.GetLargeFriendAvatar(steamID);
+        if (avatar != -1)
+        {
+            return GetSteamImageAsTexture(avatar);
+        }
         else
         {
-            Debug.LogWarning("Failed to get avatar for member: " + SteamFriends.GetFriendPersonaName(memberSteamID));
+            Debug.LogWarning("Failed to get avatar for member: " + SteamFriends.GetFriendPersonaName(steamID));
+            return null;
         }
     }
 
     private Texture2D GetSteamImageAsTexture(int imageId)
     {
+        // Load Steam image as a Texture2D
         SteamUtils.GetImageSize(imageId, out uint width, out uint height);
 
         byte[] image = new byte[width * height * 4];
@@ -189,24 +217,15 @@ public class SteamLobby : MonoBehaviour
         texture.LoadRawTextureData(image);
         texture.Apply();
 
-        return FlipTextureVertically(texture);
-    }
+        // Correctly orient the texture vertically
+        texture = FlipTextureVertically(texture);
 
-    private void ApplyAvatarTexture(GameObject playerListItem, Texture2D texture)
-    {
-        RawImage userImage = playerListItem.transform.Find("UserImage").GetComponent<RawImage>();
-        if (userImage != null)
-        {
-            userImage.texture = texture;
-        }
-        else
-        {
-            Debug.LogError("UserImage RawImage component not found in playerListItem");
-        }
+        return texture;
     }
 
     private Texture2D FlipTextureVertically(Texture2D original)
     {
+        // Flip the texture vertically
         Texture2D flipped = new Texture2D(original.width, original.height);
         int width = original.width;
         int height = original.height;
@@ -225,7 +244,7 @@ public class SteamLobby : MonoBehaviour
 
     public void DisconnectFromLobby()
     {
-        // Stop the client or host
+        // Disconnect from the lobby (stop hosting or stop client)
         if (NetworkServer.active)
         {
             networkManager.StopHost();
@@ -235,13 +254,13 @@ public class SteamLobby : MonoBehaviour
             networkManager.StopClient();
         }
 
-        // Hide the lobby UI
+        // Hide lobby UI
         lobbyUI.SetActive(false);
 
-        // Reactivate the host button if necessary
+        // Show host button
         hostButton.SetActive(true);
 
-        // Clear the player list (optional, depends on your implementation)
+        // Clear player list in the UI
         ClearPlayerList();
     }
 }
