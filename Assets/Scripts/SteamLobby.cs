@@ -16,10 +16,18 @@ public class SteamLobby : MonoBehaviour
     public Transform playerListContainer = null;
     public GameObject playerListItemPrefab = null;
 
+    private void Awake()
+    {
+        networkManager = FindObjectOfType<NetworkManager>();
+        if (networkManager == null)
+        {
+            Debug.LogError("NetworkManager not found in the scene.");
+            return;
+        }
+    }
+
     private void Start()
     {
-        networkManager = GetComponent<NetworkManager>();
-
         if (!SteamManager.Initialized) { return; }
 
         InitializeSteamCallbacks();
@@ -63,13 +71,19 @@ public class SteamLobby : MonoBehaviour
 
     private void OnLobbyEntered(LobbyEnter_t callback)
     {
+        // If host
         if (NetworkServer.active)
         {
             UpdateLobbyUI(callback.m_ulSteamIDLobby);
-            return;
+        }
+        // If client joining
+        else
+        {
+            ConnectToLobbyHost(callback.m_ulSteamIDLobby);
         }
 
-        ConnectToLobbyHost(callback.m_ulSteamIDLobby);
+        // Show lobby UI for all clients
+        lobbyUI.SetActive(true);
         hostButton.SetActive(false);
     }
 
@@ -207,5 +221,27 @@ public class SteamLobby : MonoBehaviour
 
         flipped.Apply();
         return flipped;
+    }
+
+    public void DisconnectFromLobby()
+    {
+        // Stop the client or host
+        if (NetworkServer.active)
+        {
+            networkManager.StopHost();
+        }
+        else if (NetworkClient.active)
+        {
+            networkManager.StopClient();
+        }
+
+        // Hide the lobby UI
+        lobbyUI.SetActive(false);
+
+        // Reactivate the host button if necessary
+        hostButton.SetActive(true);
+
+        // Clear the player list (optional, depends on your implementation)
+        ClearPlayerList();
     }
 }
