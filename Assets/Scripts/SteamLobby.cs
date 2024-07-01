@@ -1,14 +1,25 @@
 using UnityEngine;
 using Mirror;
 using Steamworks;
+using TMPro;
 
 public class SteamLobby : MonoBehaviour
 {
+    // Variables
     private NetworkManager networkManager;
     private const string HostAddressKey = "HostAddress";
+
+    // Callbacks
     protected Callback<LobbyCreated_t> lobbyCreated;
     protected Callback<GameLobbyJoinRequested_t> gameLobbyJoinRequested;
     protected Callback<LobbyEnter_t> lobbyEntered;
+    protected Callback<AvatarImageLoaded_t> avatarImageLoaded;
+
+    // References
+    [SerializeField] GameObject lobby;
+    [SerializeField] TextMeshProUGUI lobbyTxt;
+    [SerializeField] GameObject hostBtn;
+    [SerializeField] GameObject playerUI;
 
     private void Awake()
     {
@@ -36,6 +47,7 @@ public class SteamLobby : MonoBehaviour
         lobbyCreated = Callback<LobbyCreated_t>.Create(OnLobbyCreated);
         gameLobbyJoinRequested = Callback<GameLobbyJoinRequested_t>.Create(OnGameLobbyJoinRequested);
         lobbyEntered = Callback<LobbyEnter_t>.Create(OnLobbyEntered);
+        avatarImageLoaded = Callback<AvatarImageLoaded_t>.Create(OnAvatarImageLoaded);
     }
 
     public void HostLobby()
@@ -46,17 +58,18 @@ public class SteamLobby : MonoBehaviour
     private void OnLobbyCreated(LobbyCreated_t callback)
     {
         if (callback.m_eResult != EResult.k_EResultOK)
-        {
             return;
-        }
+
 
         networkManager.StartHost();
+
         SetLobbyHostData(callback.m_ulSteamIDLobby);
     }
 
     private void SetLobbyHostData(ulong steamIDLobby)
     {
         SteamMatchmaking.SetLobbyData(new CSteamID(steamIDLobby), HostAddressKey, SteamUser.GetSteamID().ToString());
+        SteamMatchmaking.SetLobbyData(new CSteamID(steamIDLobby), "Name", SteamFriends.GetPersonaName().ToString() + "`s lobby");
     }
 
     public void OnGameLobbyJoinRequested(GameLobbyJoinRequested_t callback)
@@ -66,9 +79,31 @@ public class SteamLobby : MonoBehaviour
 
     private void OnLobbyEntered(LobbyEnter_t callback)
     {
-        if (!NetworkServer.active)        
+        //Everyone
+        lobby.SetActive(true);
+        lobbyTxt.text = SteamMatchmaking.GetLobbyData(new CSteamID(callback.m_ulSteamIDLobby),"Name");
+        hostBtn.SetActive(false);
+
+        // Instantiate the UI prefab and make it a child of the lobby object
+        GameObject uiInstance = Instantiate(playerUI, lobby.transform);
+        PlayerListItemUI playerListItemUI = uiInstance.GetComponent<PlayerListItemUI>();
+
+        if (playerListItemUI != null)
+        {
+            string playerName = SteamFriends.GetPersonaName();
+            int imageId = SteamFriends.GetLargeFriendAvatar(SteamUser.GetSteamID());
+
+            if (imageId != -1)
+            {
+                Texture2D avatarTexture = GetSteamImageAsTexture(imageId);
+                playerListItemUI.SetPlayerInfo(playerName, avatarTexture);
+            }
+        }
+
+        // Clients
+        if (!NetworkServer.active)
             ConnectToLobbyHost(callback.m_ulSteamIDLobby);
-        
+
     }
 
     private void ConnectToLobbyHost(ulong steamIDLobby)
@@ -93,5 +128,50 @@ public class SteamLobby : MonoBehaviour
     public void OnPlayButtonClicked()
     {
         networkManager.ServerChangeScene("InsideLobby");
+    }
+
+    private Texture2D GetSteamImageAsTexture(int imageId)
+    {
+        bool isValid = SteamUtils.GetImageSize(imageId, out uint width, out uint height);
+        if (!isValid) return null;
+
+        byte[] image = new byte[width * height * 4];
+        isValid = SteamUtils.GetImageRGBA(imageId, image, (int)(width * height * 4));
+        if (!isValid) return null;
+
+        Texture2D texture = new Texture2D((int)width, (int)height, TextureFormat.RGBA32, false, true);
+        texture.LoadRawTextureData(image);
+        texture.Apply();
+
+        FlipTextureVertically(texture);
+
+        return texture;
+    }
+
+    private void FlipTextureVertically(Texture2D texture)
+    {
+        Color[] pixels = texture.GetPixels();
+        Color[] flippedPixels = new Color[pixels.Length];
+        int width = texture.width;
+        int height = texture.height;
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                flippedPixels[x + y * width] = pixels[x + (height - 1 - y) * width];
+            }
+        }
+
+        texture.SetPixels(flippedPixels);
+        texture.Apply();
+    }
+
+    private void OnAvatarImageLoaded(AvatarImageLoaded_t callback)
+    {
+        if (callback.m_steamID == SteamUser.GetSteamID())
+        {
+            // Handle avatar update if necessary
+        }
     }
 }
