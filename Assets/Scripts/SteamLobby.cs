@@ -5,21 +5,32 @@ using TMPro;
 
 public class SteamLobby : MonoBehaviour
 {
+    #region Variables
     // Variables
     private NetworkManager networkManager;
     private const string HostAddressKey = "HostAddress";
+    #endregion
 
+    #region Callbacks
     // Callbacks
     protected Callback<LobbyCreated_t> lobbyCreated;
     protected Callback<GameLobbyJoinRequested_t> gameLobbyJoinRequested;
     protected Callback<LobbyEnter_t> lobbyEntered;
     protected Callback<AvatarImageLoaded_t> avatarImageLoaded;
+    #endregion
 
+    #region References
     // References
     [SerializeField] GameObject lobby;
+    [SerializeField] GameObject items;
     [SerializeField] TextMeshProUGUI lobbyTxt;
     [SerializeField] GameObject hostBtn;
     [SerializeField] GameObject playerUI;
+    [SerializeField] GameObject playBtn;
+
+    #endregion
+
+    #region Unity Methods
 
     private void Awake()
     {
@@ -42,6 +53,10 @@ public class SteamLobby : MonoBehaviour
         InitializeSteamCallbacks();
     }
 
+    #endregion
+
+    #region Steam Callbacks Initialization
+
     private void InitializeSteamCallbacks()
     {
         lobbyCreated = Callback<LobbyCreated_t>.Create(OnLobbyCreated);
@@ -49,6 +64,10 @@ public class SteamLobby : MonoBehaviour
         lobbyEntered = Callback<LobbyEnter_t>.Create(OnLobbyEntered);
         avatarImageLoaded = Callback<AvatarImageLoaded_t>.Create(OnAvatarImageLoaded);
     }
+
+    #endregion
+
+    #region Lobby Management
 
     public void HostLobby()
     {
@@ -60,10 +79,9 @@ public class SteamLobby : MonoBehaviour
         if (callback.m_eResult != EResult.k_EResultOK)
             return;
 
-
         networkManager.StartHost();
-
         SetLobbyHostData(callback.m_ulSteamIDLobby);
+        //Debug.LogError(callback.m_ulSteamIDLobby);
     }
 
     private void SetLobbyHostData(ulong steamIDLobby)
@@ -79,13 +97,13 @@ public class SteamLobby : MonoBehaviour
 
     private void OnLobbyEntered(LobbyEnter_t callback)
     {
-        //Everyone
+        // Everyone
         lobby.SetActive(true);
-        lobbyTxt.text = SteamMatchmaking.GetLobbyData(new CSteamID(callback.m_ulSteamIDLobby),"Name");
+        lobbyTxt.text = SteamMatchmaking.GetLobbyData(new CSteamID(callback.m_ulSteamIDLobby), "Name");
         hostBtn.SetActive(false);
 
         // Instantiate the UI prefab and make it a child of the lobby object
-        GameObject uiInstance = Instantiate(playerUI, lobby.transform);
+        GameObject uiInstance = Instantiate(playerUI, items.transform);
         PlayerListItemUI playerListItemUI = uiInstance.GetComponent<PlayerListItemUI>();
 
         if (playerListItemUI != null)
@@ -103,11 +121,11 @@ public class SteamLobby : MonoBehaviour
         // Clients
         if (!NetworkServer.active)
             ConnectToLobbyHost(callback.m_ulSteamIDLobby);
-
     }
 
     private void ConnectToLobbyHost(ulong steamIDLobby)
     {
+        playBtn.SetActive(false);
         string hostAddress = SteamMatchmaking.GetLobbyData(new CSteamID(steamIDLobby), HostAddressKey);
         networkManager.networkAddress = hostAddress;
         networkManager.StartClient();
@@ -123,11 +141,34 @@ public class SteamLobby : MonoBehaviour
         {
             networkManager.StopClient();
         }
+
+        hostBtn.SetActive(true);
+        playBtn.SetActive(true);
+        lobby.SetActive(false);
+
+        // Eliminar todos los hijos de items
+        foreach (Transform child in items.transform)
+        {
+            Destroy(child.gameObject);
+        }
+
     }
 
     public void OnPlayButtonClicked()
     {
         networkManager.ServerChangeScene("InsideLobby");
+    }
+
+    #endregion
+
+    #region Avatar Handling
+
+    private void OnAvatarImageLoaded(AvatarImageLoaded_t callback)
+    {
+        if (callback.m_steamID == SteamUser.GetSteamID())
+        {
+            // Handle avatar update if necessary
+        }
     }
 
     private Texture2D GetSteamImageAsTexture(int imageId)
@@ -167,11 +208,5 @@ public class SteamLobby : MonoBehaviour
         texture.Apply();
     }
 
-    private void OnAvatarImageLoaded(AvatarImageLoaded_t callback)
-    {
-        if (callback.m_steamID == SteamUser.GetSteamID())
-        {
-            // Handle avatar update if necessary
-        }
-    }
+    #endregion
 }
