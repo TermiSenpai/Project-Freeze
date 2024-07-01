@@ -6,6 +6,7 @@ public class NetworkTest : MonoBehaviour
 {
     private NetworkManager networkManager;
     private SteamLobby steamLobby;
+    [SerializeField] ulong fakeLobbyID;
 
     private void Awake()
     {
@@ -60,8 +61,7 @@ public class NetworkTest : MonoBehaviour
         // Por simplicidad, estamos llamando un método en steamLobby que gestiona la conexión.
         if (steamLobby != null)
         {
-            // Puedes simular una solicitud de unión a un lobby usando un ID específico
-            ulong fakeLobbyID = 1234567890; // Reemplazar con un ID de lobby válido
+            // Puedes simular una solicitud de unión a un lobby usando un ID específico            
             steamLobby.OnGameLobbyJoinRequested(new GameLobbyJoinRequested_t { m_steamIDLobby = new CSteamID(fakeLobbyID) });
         }
     }
